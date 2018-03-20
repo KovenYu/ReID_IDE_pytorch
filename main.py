@@ -335,7 +335,7 @@ def train(source_loader, target_loader, net_s, net_t, generator, discriminator,
                        D_real=D_real_meter.avg, D_fake=D_fake_meter.avg) + time_string(), log)
     print_log('  **Train**  '
               'Acc {acc:.3f}   '
-              'var {var.avg:.2f}   '
+              'var {var:.2f}   '
               'loss_G {loss_G:.4f}   '
               'loss_D {loss_D:.4f}   '
               'L1 {L1:.4f}   '
