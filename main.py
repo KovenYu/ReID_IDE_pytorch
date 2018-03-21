@@ -25,6 +25,8 @@ parser = argparse.ArgumentParser(description='Re-ID transfer net',
 # Optimization options
 parser.add_argument('--epochs', type=int, default=150, help='Number of epochs to train.')
 parser.add_argument('--batch_size', type=int, default=64, help='Batch size.')
+parser.add_argument('--decrease_lr_Th', action='store_true')
+parser.add_argument('--decrease_lr_GAN', action='store_true')
 parser.add_argument('--lr_D', type=float, default=0.0001)
 parser.add_argument('--lr_G', type=float, default=0.0002)
 parser.add_argument('--lr_Th', type=float, default=0.0001)
@@ -168,9 +170,11 @@ def main():
 
     for epoch in range(start_epoch, args.epochs):
 
-        adjust_learning_rate(optimizer_D, args.lr_D, epoch)
-        adjust_learning_rate(optimizer_G, args.lr_G, epoch)
-        adjust_learning_rate(optimizer_Th, args.lr_Th, epoch)
+        if args.decrease_lr_GAN:
+            adjust_learning_rate(optimizer_D, args.lr_D, epoch)
+            adjust_learning_rate(optimizer_G, args.lr_G, epoch)
+        if args.decrease_lr_Th:
+            adjust_learning_rate(optimizer_Th, args.lr_Th, epoch)
 
         need_hour, need_mins, need_secs = convert_secs2time(epoch_time.avg * (args.epochs - epoch))
         need_time = '[Need: {:02d}:{:02d}:{:02d}]'.format(need_hour, need_mins, need_secs)
@@ -292,7 +296,7 @@ def train(source_loader, target_loader, net_s, net_t, generator, discriminator,
         D_fake = prob.data.mean()
         optimizer_G.step()
 
-        _, _, predictions, _ = net_t(fake_maps, is_mid_maps=True)  # update Th using previous fake_maps
+        _, _, predictions, _ = net_t(fake_maps.detach(), is_mid_maps=True)  # update Th using previous fake_maps
         softmax = criterion_CE(predictions, labels_t_var)
         acc = accuracy(predictions.data, labels_t, topk=(1,))
 
