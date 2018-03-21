@@ -35,11 +35,11 @@ parser.add_argument('--wd_G', type=float, default=0)
 parser.add_argument('--wd_Th', type=float, default=0)
 parser.add_argument('--weight_L1', type=float, default=1, help='weight for L1 loss in generator')
 # Checkpoints
-parser.add_argument('--print_freq', default=1, type=int, metavar='N', help='print frequency (default: 200)')
+parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 200)')
 parser.add_argument('--save_path', type=str, default='./debug', help='Folder to save checkpoints and log.')
 parser.add_argument('--resume', default='', type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
 parser.add_argument('--model_path', default='data/pretrain_model.pth.tar', type=str)
-parser.add_argument('--plot_freq', default=1, type=int)
+parser.add_argument('--plot_freq', default=10, type=int)
 parser.add_argument('--target', default='Market', type=str, choices=['Market', 'Duke'])
 parser.add_argument('--source', default='', type=str)
 # model options
