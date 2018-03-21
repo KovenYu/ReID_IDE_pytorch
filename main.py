@@ -32,7 +32,6 @@ parser.add_argument('--wd_D', type=float, default=0)
 parser.add_argument('--wd_G', type=float, default=0)
 parser.add_argument('--wd_Th', type=float, default=0)
 parser.add_argument('--weight_L1', type=float, default=1, help='weight for L1 loss in generator')
-parser.add_argument('--weight_softmax', type=float, default=1, help='weight for softmax in generator')
 # Checkpoints
 parser.add_argument('--print_freq', default=1, type=int, metavar='N', help='print frequency (default: 200)')
 parser.add_argument('--save_path', type=str, default='./debug', help='Folder to save checkpoints and log.')
@@ -298,10 +297,8 @@ def train(source_loader, target_loader, net_s, net_t, generator, discriminator,
         acc = accuracy(predictions.data, labels_t, topk=(1,))
 
         optimizer_Th.zero_grad()
-        optimizer_G.zero_grad()
-        softmax.backward(gradient=gradient_weight * args.weight_softmax)  # only passing net
+        softmax.backward(gradient=gradient_weight)  # only passing net
         optimizer_Th.step()
-        optimizer_G.step()
 
         # update meters
         acc_meter.update(acc[0][0], args.batch_size)
