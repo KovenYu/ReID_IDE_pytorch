@@ -1,7 +1,7 @@
 from __future__ import division
 from utils import AverageMeter, Recorder, time_string, convert_secs2time, eval_cmc_map, occupy_gpu_memory
 from ReIDdatasets import Market
-from gan_net import Discriminator, BottleneckGenerator
+from gan_net import Discriminator, BottleneckGenerator, LongneckGenerator
 from resnet import resnet56
 
 import argparse
@@ -44,6 +44,7 @@ parser.add_argument('--target', default='Market', type=str, choices=['Market', '
 parser.add_argument('--source', default='', type=str)
 # model options
 parser.add_argument('--is_transfer_net', action='store_true')
+parser.add_argument('--G_structure', default='Bottleneck', type=str, choices=['Bottleneck', 'Longneck'])
 # Acceleration
 parser.add_argument('--gpu', type=str, default='0', help='gpu used.')
 args = parser.parse_args()
@@ -112,7 +113,10 @@ def main():
     net_s.load_state_dict(checkpoint['state_dict'])
     net_t = copy.deepcopy(net_s)
     print_log('loaded pre-trained feature net', log)
-    generator = BottleneckGenerator(args.is_transfer_net)
+    if args.G_structure == 'Bottleneck':
+        generator = BottleneckGenerator(args.is_transfer_net)
+    else:
+        generator = LongneckGenerator(args.is_transfer_net)
     discriminator = Discriminator()
 
     criterion_CE = nn.CrossEntropyLoss()

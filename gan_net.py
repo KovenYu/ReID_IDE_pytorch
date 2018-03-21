@@ -71,56 +71,68 @@ class BottleneckGenerator(nn.Module):
         return new_maps, features
 
 
-class BasicBlockDown(nn.Module):
-    def __init__(self, n_channel, kernel_size, stride, padding, is_last=False):
-        super(BasicBlockDown, self).__init__()
-        self.conv1 = nn.Conv2d(n_channel, n_channel, kernel_size, stride, padding, bias=False)
-        self.bn1 = nn.BatchNorm2d(n_channel)
-        self.bn2 = nn.BatchNorm2d(n_channel)
-        self.activation = nn.LeakyReLU(0.2)
-        if is_last:  # conv2 deals with (1,1)
-            self.conv2 = nn.Conv2d(n_channel, n_channel, 1, stride=1, padding=0, bias=False)
-            self.downsample = nn.AvgPool2d(kernel_size, stride=stride)
-        else:
-            self.conv2 = nn.Conv2d(n_channel, n_channel, 3, stride=1, padding=1, bias=False)
-            self.downsample = nn.AvgPool2d(1, stride=2)
+class LongneckGenerator(nn.Module):
+    def __init__(self, is_transfer_net=True):
+        super(LongneckGenerator, self).__init__()
+
+        self.is_transfer_net = is_transfer_net
+
+        self.down_1 = nn.Sequential(nn.Conv2d(32, 64, 3, stride=2, padding=1),  # 36, 14
+                                    nn.InstanceNorm2d(64),
+                                    nn.ReLU())
+        self.down_2 = nn.Sequential(nn.Conv2d(64, 128, 3, stride=2, padding=1),  # 18, 7
+                                    nn.InstanceNorm2d(128),
+                                    nn.ReLU())
+        self.mid = nn.Sequential(ResidualBlock(128),
+                                 ResidualBlock(128),
+                                 ResidualBlock(128),
+                                 ResidualBlock(128),
+                                 ResidualBlock(128),
+                                 ResidualBlock(128))
+        self.up_3 = nn.Sequential(nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1),
+                                  nn.InstanceNorm2d(64),
+                                  nn.ReLU())
+        self.up_4 = nn.Sequential(nn.ConvTranspose2d(64, 32, 4, stride=2, padding=1),
+                                  nn.InstanceNorm2d(32),
+                                  nn.Tanh())
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+
+    def forward(self, mid_maps, is_target=True):
+        d1 = self.down_1(mid_maps)
+        d2 = self.down_2(d1)
+        m = self.mid(d2)
+        features = m
+        u3 = self.up_3(m)
+        new_maps = self.up_4(u3)
+        return new_maps, features
+
+
+class ResidualBlock(nn.Module):
+    def __init__(self, n_channel, kernel_size=3, stride=1, padding=1):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(n_channel, n_channel, kernel_size, stride, padding)
+        self.in1 = nn.InstanceNorm2d(n_channel)
+        self.in2 = nn.InstanceNorm2d(n_channel)
+        self.activation = nn.ReLU()
+        self.conv2 = nn.Conv2d(n_channel, n_channel, kernel_size, stride, padding)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
 
     def forward(self, x):
-        down_sample = self.downsample(x)
+        identity = x
         x = self.conv1(x)
-        x = self.bn1(x)
+        x = self.in1(x)
         x = self.activation(x)
         x = self.conv2(x)
-        x = self.bn2(x)
-        x = down_sample + x
+        x = self.in2(x)
+        x = identity + x
         return self.activation(x)
-
-
-class BasicBlockUp(nn.Module):
-    def __init__(self, n_channel, kernel_size, stride, padding, is_last=False):
-        super(BasicBlockUp, self).__init__()
-        self.conv1 = nn.ConvTranspose2d(n_channel, n_channel, kernel_size, stride, padding, bias=False)
-        self.bn1 = nn.BatchNorm2d(n_channel)
-        self.activation1 = nn.LeakyReLU(0.2)
-        self.conv2 = nn.ConvTranspose2d(n_channel, n_channel, 3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(n_channel)
-        if is_last:
-            self.activation2 = nn.ReLU()
-        else:
-            self.activation2 = nn.LeakyReLU(0.2)
-        self.upsample = nn.ConvTranspose2d(n_channel, n_channel, kernel_size, stride, padding, bias=False)
-        self.upsample.weight.requires_grad = False
-        self.upsample.weight.fill_(1)
-
-    def forward(self, x):
-        up_sample = self.upsample(x)
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.activation1(x)
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = up_sample + x
-        return self.activation2(x)
 
 
 class Discriminator(nn.Module):
@@ -172,7 +184,7 @@ class GlobalAvgPool(nn.Module):
 
 def main():
 
-    g = BottleneckGenerator()
+    g = LongneckGenerator()
     d = Discriminator()
     criterion = nn.MSELoss()
     input = autograd.Variable(torch.randn(5, 32, 72, 28), requires_grad=True)
