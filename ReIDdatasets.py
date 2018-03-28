@@ -6,11 +6,12 @@ import matplotlib.pyplot as plt
 
 
 class Market(data.Dataset):
-    def __init__(self, root, state='train', transform=None):
+    def __init__(self, root, state='train', transform=None, require_views=True):
         super(Market, self).__init__()
         self.root = root
         self.state = state
         self.transform = transform
+        self.require_views = require_views
         if self.transform is not None:
             self.on_transform = True
         else:
@@ -81,7 +82,10 @@ class Market(data.Dataset):
         if self.on_transform:
             img = self.transform(img)
 
-        return img, label, view
+        if self.require_views:
+            return img, label, view
+        else:
+            return img, label
 
 
 class FullTraining(data.Dataset):
