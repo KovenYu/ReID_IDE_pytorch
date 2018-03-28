@@ -135,13 +135,13 @@ class ResidualBlock(nn.Module):
         return self.activation(x)
 
 
-class Discriminator(nn.Module):
+class DiscriminatorAbandon(nn.Module):
     """
     A: Similar structure to BottleneckGeneratorA,
     downsample twice from (36, 14) to (9, 4), then down to (4, 2) to (1, 1)
     """
     def __init__(self):
-        super(Discriminator, self).__init__()
+        super(DiscriminatorAbandon, self).__init__()
         self.main = nn.Sequential(nn.Conv2d(32, 48, 3, stride=2, padding=1, bias=False),
                                   nn.LeakyReLU(0.2),
                                   nn.Conv2d(48, 64, 3, stride=2, padding=1, bias=False),
@@ -153,6 +153,28 @@ class Discriminator(nn.Module):
                                   nn.Conv2d(96, 1, 3, stride=2, padding=1, bias=False),
                                   nn.AvgPool2d((5, 2)),
                                   nn.Sigmoid())
+
+    def forward(self, x):
+        x = self.main(x)
+        probability_true = x.view(x.size(0), -1)
+        return probability_true
+
+
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.main = nn.Sequential(nn.Conv2d(64, 1, (36, 14), bias=False),
+                                  nn.BatchNorm2d(1),
+                                  nn.Sigmoid())
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                nn.init.kaiming_normal(m.weight)
 
     def forward(self, x):
         x = self.main(x)
@@ -187,14 +209,15 @@ def main():
     g = LongneckGenerator()
     d = Discriminator()
     criterion = nn.MSELoss()
-    input = autograd.Variable(torch.randn(5, 32, 72, 28), requires_grad=True)
-    target = input.detach()
-    new_maps, _ = g(input, is_target=False)
-    GAP = nn.AvgPool2d((36, 14))
-    x = GAP(new_maps)
-    x = x.view(x.size(0), -1)
-    probability_true = d(new_maps)
-    loss = criterion(new_maps, target)
+    input = autograd.Variable(torch.randn(5, 64, 36, 14), requires_grad=True)
+    # target = input.detach()
+    # new_maps, _ = g(input, is_target=False)
+    # GAP = nn.AvgPool2d((36, 14))
+    # x = GAP(new_maps)
+    # x = x.view(x.size(0), -1)
+    probability_true = d(input)
+    print(probability_true)
+    # loss = criterion(new_maps, target)
     pass
 
 

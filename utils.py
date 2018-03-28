@@ -17,12 +17,13 @@ class BaseOptions(object):
         self.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         self.args = None
 
-        self.parser.add_argument('--epochs', type=int, default=150, help='Number of epochs to train.')
+        self.parser.add_argument('--epochs', type=int, default=200, help='Number of epochs to train.')
         self.parser.add_argument('--batch_size', type=int, default=64)
         self.parser.add_argument('--print_freq', default=100, type=int, help='print after several batches')
         self.parser.add_argument('--save_path', type=str, default='./debug', help='Folder to save checkpoints and log.')
         self.parser.add_argument('--resume', default='', type=str, help='path to latest checkpoint (default: none)')
         self.parser.add_argument('--gpu', type=str, default='0', help='gpu used.')
+        self.parser.add_argument('--pretrain_path', default='data/pretrain_model.pth.tar', type=str)
 
     def parse(self):
         self.args = self.parser.parse_args()
@@ -47,22 +48,20 @@ class TransOptions(BaseOptions):
         super(TransOptions, self).__init__()
         # Optimization options
         self.parser.add_argument('--lr_strategy_Th', type=str, default='resnet_style')
-        self.parser.add_argument('--lr_strategy_GAN', type=str, default='cyclegan_style')
+        self.parser.add_argument('--lr_strategy_GAN', type=str, default='resnet_style')
         self.parser.add_argument('--lr_D', type=float, default=0.0001)
         self.parser.add_argument('--lr_G', type=float, default=0.0002)
         self.parser.add_argument('--lr_Th', type=float, default=0.0001)
-        self.parser.add_argument('--wd_D', type=float, default=0)
-        self.parser.add_argument('--wd_G', type=float, default=0)
         self.parser.add_argument('--wd_Th', type=float, default=0)
-        self.parser.add_argument('--weight_L1', type=float, default=1, help='weight for L1 loss in generator')
+        self.parser.add_argument('--R_rec', type=float, default=1, help='rate of rec loss over GAN loss in generator')
+        self.parser.add_argument('--R_GAN', type=float, default=1, help='rate of GAN loss over softmax loss')
+        self.parser.add_argument('--R_AdaSoftmax', type=float, default=1, help='rate of ada_softmax loss over softmax')
+        self.parser.add_argument('--G_joint', action='store_true', help='if specified, G receives ada_softmax gradient')
+        self.parser.add_argument('--pretrain_epochs', type=int, default=0, help='epochs that only pretrain G')
         # Checkpoints
-        self.parser.add_argument('--model_path', default='data/pretrain_model.pth.tar', type=str)
         self.parser.add_argument('--plot_freq', default=10, type=int)
         self.parser.add_argument('--target', default='Market', type=str, choices=['Market', 'Duke'])
-        self.parser.add_argument('--source', default='Duke', type=str)
-        # model options
-        self.parser.add_argument('--is_transfer_net', action='store_true')
-        self.parser.add_argument('--G_structure', default='Bottleneck', type=str, choices=['Bottleneck', 'Longneck'])
+        self.parser.add_argument('--source', default='JSTL', type=str, choices=['Market', 'Duke', 'JSTL'])
 
 
 class Logger(object):
