@@ -47,8 +47,8 @@ class TransOptions(BaseOptions):
     def __init__(self):
         super(TransOptions, self).__init__()
         # Optimization options
-        self.parser.add_argument('--lr_strategy_Th', type=str, default='resnet_style')
-        self.parser.add_argument('--lr_strategy_GAN', type=str, default='resnet_style')
+        self.parser.add_argument('--lr_strategy_Th', type=str, default='cyclegan_style')
+        self.parser.add_argument('--lr_strategy_GAN', type=str, default='cyclegan_style')
         self.parser.add_argument('--lr_D', type=float, default=0.0001)
         self.parser.add_argument('--lr_G', type=float, default=0.0002)
         self.parser.add_argument('--lr_Th', type=float, default=0.0001)

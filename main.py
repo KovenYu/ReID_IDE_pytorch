@@ -58,8 +58,11 @@ def main():
 
     net_s = resnet56(num_classes).cuda()
     checkpoint = torch.load(args.pretrain_path)
-    fixed_layers = ('fc_final', 'bn_final')
-    state_dict = reset_state_dict(checkpoint['state_dict'], net_s, *fixed_layers)
+    if args.source != 'JSTL':
+        fixed_layers = ('fc_final', 'bn_final')
+        state_dict = reset_state_dict(checkpoint['state_dict'], net_s, *fixed_layers)
+    else:
+        state_dict = checkpoint['state_dict']
     net_s.load_state_dict(state_dict)
     net_t = copy.deepcopy(net_s).cuda()
     logger.print_log('loaded pre-trained feature net')
@@ -323,6 +326,7 @@ def pretrain(target_loader, net_t, generator,
              optimizer_G, epoch, logger):
     net_t.train()
     generator.train()
+    logger.print_log('  **Pretrain**    Epoch: [{:03d}]   '.format(epoch))
     for i, (imgs_t, _, _) in enumerate(target_loader):
         imgs_t_var = torch.autograd.Variable(imgs_t.cuda())
         _, _, _, mid_maps_t = net_t(imgs_t_var)
@@ -332,7 +336,6 @@ def pretrain(target_loader, net_t, generator,
         L1_t = criterion_L1(recons, mid_maps_t.detach())
         L1_t.backward()  # passing generator
         optimizer_G.step()
-        logger.print_log('  **Pretrain**    Epoch: [{:03d}][{:03d}/{:03d}]   '.format(epoch, i, len(target_loader)))
 
 
 if __name__ == '__main__':
