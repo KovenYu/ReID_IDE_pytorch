@@ -120,7 +120,7 @@ def main():
         lr_D, = adjust_learning_rate(optimizer_D, (args.lr_D,), epoch, args.epochs, args.lr_strategy_GAN)
         lr_G, = adjust_learning_rate(optimizer_G, (args.lr_G,), epoch, args.epochs, args.lr_strategy_GAN)
         lr_Th, = adjust_learning_rate(optimizer_Th, (args.lr_Th,), epoch, args.epochs, args.lr_strategy_Th)
-        print("   lr_D:{}, lr_G:{}, lr_Th:{}".format(epoch, lr_D, lr_G, lr_Th))
+        print("   lr_D:{}, lr_G:{}, lr_Th:{}".format(lr_D, lr_G, lr_Th))
 
         if epoch < args.pretrain_epochs:
             pretrain(target_loader, net_t, generator,
@@ -260,7 +260,7 @@ def train(source_loader, target_loader, net_s, net_t, generator, discriminator,
         loss_G.backward(gradient=gradient_weight * args.R_GAN)
         # backward rec loss
         rec_loss = criterion_L1(recons, mid_maps_t.detach())
-        rec_loss.backward(gradient=gradient_weight * args.R_rec * args.R_GAN)
+        rec_loss.backward(gradient=gradient_weight * args.R_rec * args.R_GAN if args.R_GAN != 0 else gradient_weight * args.R_rec)
         optimizer_G.step()
 
         # update meters
