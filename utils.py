@@ -47,6 +47,13 @@ class BaseOptions(object):
         logger.print_log("".center(120, '-'))
 
 
+class TransferOptions(BaseOptions):
+    def __init__(self):
+        super(TransferOptions, self).__init__()
+
+        self.parser.add_argument('--target', type=str, default='Duke', choices=['Market', 'Duke'])
+
+
 class Logger(object):
     def __init__(self, save_path):
         if not os.path.isdir(save_path):

@@ -1,5 +1,5 @@
 from __future__ import division
-from utils import AverageMeter, BaseOptions, Recorder, Logger, time_string, convert_secs2time, eval_cmc_map, \
+from utils import AverageMeter, TransferOptions, Recorder, Logger, time_string, convert_secs2time, eval_cmc_map, \
     reset_state_dict, extract_features, create_stat_string, save_checkpoint, adjust_learning_rate, accuracy, \
     partition_params
 from ReIDdatasets import Market
@@ -19,7 +19,7 @@ cudnn.benchmark = True
 
 
 def main():
-    opts = BaseOptions()
+    opts = TransferOptions()
     args = opts.parse()
     logger = Logger(args.save_path)
     opts.print_options(logger)
@@ -36,6 +36,8 @@ def main():
     train_data = Market('data/{}.mat'.format(args.dataset), state='train', transform=train_transform)
     gallery_data = Market('data/{}.mat'.format(args.dataset), state='gallery', transform=test_transform)
     probe_data = Market('data/{}.mat'.format(args.dataset), state='probe', transform=test_transform)
+    target_gallery_data = Market('data/{}.mat'.format(args.target), state='gallery', transform=test_transform)
+    target_probe_data = Market('data/{}.mat'.format(args.target), state='probe', transform=test_transform)
     num_classes = train_data.return_num_class()
 
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True,
@@ -44,6 +46,10 @@ def main():
                                                  num_workers=2, pin_memory=True)
     probe_loader = torch.utils.data.DataLoader(probe_data, batch_size=args.batch_size, shuffle=False,
                                                num_workers=2, pin_memory=True)
+    target_gallery_loader = torch.utils.data.DataLoader(target_gallery_data, batch_size=args.batch_size, shuffle=False,
+                                                        num_workers=2, pin_memory=True)
+    target_probe_loader = torch.utils.data.DataLoader(target_probe_data, batch_size=args.batch_size, shuffle=False,
+                                                      num_workers=2, pin_memory=True)
 
     net = resnet.resnet50(pretrained=False, num_classes=num_classes).cuda()
     checkpoint = torch.load(args.pretrain_path)
@@ -60,7 +66,7 @@ def main():
                                  {'params': conv_params}], lr=args.lr, momentum=0.9, weight_decay=args.wd)
 
     train_stats = ('acc', 'loss')
-    val_stats = ('acc',)
+    val_stats = ('acc', 'target_r1')
     recorder = Recorder(args.epochs, val_stats[0], train_stats, val_stats)
     logger.print_log('observing training stats: {} \nvalidation stats: {}'.format(train_stats, val_stats))
 
@@ -108,7 +114,7 @@ def main():
         epoch_time.update(time.time() - start_time)
         start_time = time.time()
 
-    evaluate(gallery_loader, probe_loader, net,
+    evaluate(gallery_loader, probe_loader, target_gallery_loader, target_probe_loader, net,
              args.epochs - 1, recorder, logger)
 
 
@@ -153,7 +159,7 @@ def train(train_loader, net,
     recorder.update(epoch=epoch, is_train=True, meters=meters)
 
 
-def evaluate(gallery_loader, probe_loader, net,
+def evaluate(gallery_loader, probe_loader, target_gallery_loader, target_probe_loader, net,
              epoch, recorder, logger):
 
     stats = recorder.val_stats
@@ -166,6 +172,15 @@ def evaluate(gallery_loader, probe_loader, net,
     CMC, MAP = eval_cmc_map(dist, gallery_labels, probe_labels, gallery_views, probe_views)
     rank1 = CMC[0]
     meters['acc'].update(rank1, 1)
+
+    target_gallery_features, target_gallery_labels, target_gallery_views = \
+        extract_features(target_gallery_loader, net, index_feature=0, require_views=True)
+    target_probe_features, target_probe_labels, target_probe_views = \
+        extract_features(target_probe_loader, net, index_feature=0, require_views=True)
+    dist = cdist(target_gallery_features, target_probe_features, metric='euclidean')
+    target_CMC, target_MAP = eval_cmc_map(dist, target_gallery_labels, target_probe_labels, target_gallery_views, target_probe_views)
+    target_rank1 = target_CMC[0]
+    meters['target_r1'].update(target_rank1, 1)
 
     logger.print_log('  **Test**  ' + create_stat_string(meters))
     recorder.update(epoch=epoch, is_train=False, meters=meters)
