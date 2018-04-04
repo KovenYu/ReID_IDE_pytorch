@@ -2,8 +2,8 @@ clear, clc
 h = 224;
 w = 224;
 data = zeros(h, w, 3, 0, 'uint8');
-idxViews = zeros(1, 0, 'uint64');
-labels = zeros(1, 0, 'uint64');
+idxViews = zeros(1, 0, 'int64');
+labels = zeros(1, 0, 'int64');
 set =zeros(1, 0, 'uint8');
 dir_path = '';
 

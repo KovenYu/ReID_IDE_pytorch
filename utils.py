@@ -41,7 +41,7 @@ class BaseOptions(object):
         string = ''
         for i, (k, v) in enumerate(sorted(args.items())):
             string += "{}: {}".format(k, v).center(40, ' ')
-            if i % 3 == 2 or i == len(args.items()):
+            if i % 3 == 2 or i == len(args.items())-1:
                 logger.print_log(string)
                 string = ''
         logger.print_log("".center(120, '-'))
@@ -379,8 +379,7 @@ def save_checkpoint(state, is_best, save_path, filename):
 def adjust_learning_rate(optimizer, init_lr, epoch, total_epoch, strategy, lr_list=None):
     """
     :param optimizer:
-    :param init_lr: tuple of float, either has one element (for all param_groups in optimizer)
-    or has len(param_groups) elements. If latter, each element corresponds to a param_group
+    :param init_lr: tuple of float, has len(param_groups) elements. each element corresponds to a param_group
     :param epoch: int, current epoch index
     :param total_epoch: int
     :param strategy: choices are: ['constant', 'resnet_style', 'cyclegan_style', 'specified', 'finetune_style'],

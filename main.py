@@ -48,7 +48,7 @@ def main():
     net = resnet.resnet50(pretrained=False, num_classes=num_classes).cuda()
     checkpoint = torch.load(args.pretrain_path)
     fixed_layers = ('fc',)
-    state_dict = reset_state_dict(checkpoint['state_dict'], net, *fixed_layers)
+    state_dict = reset_state_dict(checkpoint, net, *fixed_layers)
     net.load_state_dict(state_dict)
     logger.print_log('loaded pre-trained feature net')
 
@@ -56,8 +56,8 @@ def main():
 
     bn_params, conv_params = partition_params(net, 'bn')
 
-    optimizer = torch.optim.SGD([{'param': bn_params, 'weight_decay': 0},
-                                 {'param': conv_params}], lr=args.lr, momentum=0.9, weight_decay=args.wd)
+    optimizer = torch.optim.SGD([{'params': bn_params, 'weight_decay': 0},
+                                 {'params': conv_params}], lr=args.lr, momentum=0.9, weight_decay=args.wd)
 
     train_stats = ('acc', 'loss')
     val_stats = ('acc',)
@@ -89,12 +89,12 @@ def main():
         logger.print_log(
             '\n==>>{:s} [Epoch={:03d}/{:03d}] {:s}'.format(time_string(), epoch, args.epochs, need_time))
 
-        lr, = adjust_learning_rate(optimizer, (args.lr,), epoch, args.epochs, args.lr_strategy)
+        lr, _ = adjust_learning_rate(optimizer, (args.lr, args.lr), epoch, args.epochs, args.lr_strategy)
         print("   lr:{}".format(lr))
 
-        train(train_loader, net,
-              criterion_CE,
-              optimizer, epoch, recorder, logger, args)
+        # train(train_loader, net,
+        #       criterion_CE,
+        #       optimizer, epoch, recorder, logger, args)
 
         save_checkpoint({
             'epoch': epoch + 1,
