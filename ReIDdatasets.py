@@ -88,60 +88,8 @@ class Market(data.Dataset):
             return img, label
 
 
-class FullTraining(data.Dataset):
-    def __init__(self, root, transform=None):
-        super(FullTraining, self).__init__()
-        self.root = root
-        self.transform = transform
-        if self.transform is not None:
-            self.on_transform = True
-        else:
-            self.on_transform = False
-
-        f = h5py.File(self.root, 'r')
-        variables = f.items()
-        # [0]: data
-        # [1]: labels
-
-        _, temp = variables[0]
-        self.data = np.transpose(temp.value, (0, 3, 2, 1))
-        _, temp = variables[1]
-        self.labels = np.squeeze(temp.value)
-
-    def return_mean(self, axis=(0, 1, 2)):
-        return np.mean(self.data, axis)
-
-    def return_std(self, axis=(0, 1, 2)):
-        return np.std(self.data, axis)
-
-    def return_num_class(self):
-        return np.size(np.unique(self.labels))
-
-    def turn_on_transform(self, transform=None):
-        self.on_transform = True
-        if transform is not None:
-            self.transform = transform
-        assert self.transform is not None, 'Transform not specified.'
-
-    def turn_off_transform(self):
-        self.on_transform = False
-
-    def __len__(self):
-        return self.labels.shape[0]
-
-    def __getitem__(self, index):
-        img, label = self.data[index], self.labels[index]
-
-        img = Image.fromarray(img)
-
-        if self.on_transform:
-            img = self.transform(img)
-
-        return img, label
-
-
 def main():
-    Market_dataset = FullTraining('data/Market.mat')
+    Market_dataset = Market('data/Market.mat')
     print(Market_dataset.__len__())
     img, label = Market_dataset[0]
     plt.imshow(img)

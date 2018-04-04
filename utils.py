@@ -17,13 +17,17 @@ class BaseOptions(object):
         self.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         self.args = None
 
-        self.parser.add_argument('--epochs', type=int, default=200, help='Number of epochs to train.')
-        self.parser.add_argument('--batch_size', type=int, default=64)
+        self.parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
+        self.parser.add_argument('--batch_size', type=int, default=16)
         self.parser.add_argument('--print_freq', default=100, type=int, help='print after several batches')
         self.parser.add_argument('--save_path', type=str, default='./debug', help='Folder to save checkpoints and log.')
         self.parser.add_argument('--resume', default='', type=str, help='path to latest checkpoint (default: none)')
         self.parser.add_argument('--gpu', type=str, default='0', help='gpu used.')
-        self.parser.add_argument('--pretrain_path', default='data/pretrain_model.pth.tar', type=str)
+        self.parser.add_argument('--pretrain_path', default='data/resnet50-19c8e357.pth', type=str)
+        self.parser.add_argument('--lr_strategy', type=str, default='finetune_style')
+        self.parser.add_argument('--lr', type=float, default=0.001)
+        self.parser.add_argument('--wd', type=float, default=0.0001)
+        self.parser.add_argument('--dataset', default='Market', type=str, choices=['Market', 'Duke'])
 
     def parse(self):
         self.args = self.parser.parse_args()
@@ -41,27 +45,6 @@ class BaseOptions(object):
                 logger.print_log(string)
                 string = ''
         logger.print_log("".center(120, '-'))
-
-
-class TransOptions(BaseOptions):
-    def __init__(self):
-        super(TransOptions, self).__init__()
-        # Optimization options
-        self.parser.add_argument('--lr_strategy_Th', type=str, default='cyclegan_style')
-        self.parser.add_argument('--lr_strategy_GAN', type=str, default='cyclegan_style')
-        self.parser.add_argument('--lr_D', type=float, default=0.0001)
-        self.parser.add_argument('--lr_G', type=float, default=0.0002)
-        self.parser.add_argument('--lr_Th', type=float, default=0.0001)
-        self.parser.add_argument('--wd_Th', type=float, default=0)
-        self.parser.add_argument('--R_rec', type=float, default=1, help='rate of rec loss over GAN loss in generator')
-        self.parser.add_argument('--R_GAN', type=float, default=1, help='rate of GAN loss over softmax loss')
-        self.parser.add_argument('--R_AdaSoftmax', type=float, default=1, help='rate of ada_softmax loss over softmax')
-        self.parser.add_argument('--G_joint', action='store_true', help='if specified, G receives ada_softmax gradient')
-        self.parser.add_argument('--pretrain_epochs', type=int, default=0, help='epochs that only pretrain G')
-        # Checkpoints
-        self.parser.add_argument('--plot_freq', default=10, type=int)
-        self.parser.add_argument('--target', default='Market', type=str, choices=['Market', 'Duke'])
-        self.parser.add_argument('--source', default='JSTL', type=str, choices=['Market', 'Duke', 'JSTL'])
 
 
 class Logger(object):
@@ -283,6 +266,12 @@ def convert_secs2time(epoch_time):
 
 def eval_cmc_map(dist, gallery_labels, probe_labels, gallery_views=None, probe_views=None):
     """
+    I shall note that the MAP evaluated by this function is different from Zheng Liang's code.
+    basically, this one is lower.
+    although I believe my code is the correct one (an example is, in the original paper which Market-1501 is published,
+    the toy example is wrongly evaluated BOTH in Zheng's code and the paper. XD),
+    you might want a higher performance XD.
+    so, if you want to compare your result with the published ones, please use Zheng's code in MATLAB XD.
     :param dist: 2-d np array, shape=(num_gallery, num_probe), distance matrix.
     :param gallery_labels: np array, shape=(num_gallery,)
     :param probe_labels:
@@ -394,10 +383,11 @@ def adjust_learning_rate(optimizer, init_lr, epoch, total_epoch, strategy, lr_li
     or has len(param_groups) elements. If latter, each element corresponds to a param_group
     :param epoch: int, current epoch index
     :param total_epoch: int
-    :param strategy: choices are: ['constant', 'resnet_style', 'cyclegan_style', 'specified'],
+    :param strategy: choices are: ['constant', 'resnet_style', 'cyclegan_style', 'specified', 'finetune_style'],
     'constant': keep learning rate unchanged through training
     'resnet_style': divide lr by 10 in total_epoch/2, by 100 in total_epoch*(3/4)
     'cyclegan_style': linearly decrease lr to 0 after total_epoch/2
+    'finetune_style': divide lr by 10 in total_epoch*(3/4)
     'specified': according to the given lr_list
     :param lr_list: numpy array, shape=(n_groups, total_epoch), only required when strategy == 'specified'
     :return: new_lr, tuple, has the same shape as init_lr
@@ -414,6 +404,14 @@ def adjust_learning_rate(optimizer, init_lr, epoch, total_epoch, strategy, lr_li
         factors = np.ones(total_epoch,)
         factors[int(total_epoch/2):] *= 0.1
         factors[int(3*total_epoch/4):] *= 0.1
+        lr_list *= factors
+        new_lr = lr_list[:, epoch]
+    elif strategy == 'finetune_style':
+        lr_list = np.ones((n_group, total_epoch), dtype=float)
+        for i in range(n_group):
+            lr_list[i, :] *= init_lr[i]
+        factors = np.ones(total_epoch,)
+        factors[int(total_epoch*3/4):] *= 0.1
         lr_list *= factors
         new_lr = lr_list[:, epoch]
     elif strategy == 'cyclegan_style':
