@@ -92,9 +92,9 @@ def main():
         lr, _ = adjust_learning_rate(optimizer, (args.lr, args.lr), epoch, args.epochs, args.lr_strategy)
         print("   lr:{}".format(lr))
 
-        # train(train_loader, net,
-        #       criterion_CE,
-        #       optimizer, epoch, recorder, logger, args)
+        train(train_loader, net,
+              criterion_CE,
+              optimizer, epoch, recorder, logger, args)
 
         save_checkpoint({
             'epoch': epoch + 1,
